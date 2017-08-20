@@ -1,0 +1,163 @@
+---
+title: "Practical_Machine_Learning"
+output: html_document
+name: Maria Pintea
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Description
+
+Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+Data
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+What you should submit
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+Peer Review Portion
+
+Your submission for the Peer Review portion should consist of a link to a Github repo with your R markdown and compiled HTML file describing your analysis. Please constrain the text of the writeup to < 2000 words and the number of figures to be less than 5. It will make it easier for the graders if you submit a repo with a gh-pages branch so the HTML page can be viewed online (and you always want to make it easy on graders :-).
+Course Project Prediction Quiz Portion
+
+Apply your machine learning algorithm to the 20 test cases available in the test data above and submit your predictions in appropriate format to the Course Project Prediction Quiz for automated grading.
+Reproducibility
+
+Due to security concerns with the exchange of R code, your code will not be run during the evaluation by your classmates. Please be sure that if they download the repo, they will be able to view the compiled HTML version of your analysis. 
+
+Load packages:
+
+```{r}
+
+library(ggplot2)
+library(caret)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+library(knitr)
+
+```
+
+Read data:
+
+```{r}
+set.seed(12500)
+
+training_data<-read.csv("A:\\home\\Documents\\pml-training.csv", header=TRUE, na.strings=c("NA", "NAN", "", "#DIV/0!"))
+
+test_data<-read.csv("A:\\home\\Documents\\pml-testing.csv", header=TRUE, na.strings=c("NA", "NAN", "", "#DIV/0!"))
+
+```
+
+Partition the training set in two:
+
+```{r}
+
+inTrain <- createDataPartition(y=training_data$classe, p=0.6, list=FALSE)
+Training <- training_data[inTrain, ]; Testing <- training_data[-inTrain, ]
+dim(Training); dim(Testing)
+
+```
+
+Clean the data:
+
+```{r}
+
+DataNZV <- nearZeroVar(Training, saveMetrics=TRUE)
+NZVvars <- names(Training) %in% c("new_window", "kurtosis_roll_belt", "kurtosis_picth_belt",
+"kurtosis_yaw_belt", "skewness_roll_belt", "skewness_roll_belt.1", "skewness_yaw_belt",
+"max_yaw_belt", "min_yaw_belt", "amplitude_yaw_belt", "avg_roll_arm", "stddev_roll_arm",
+"var_roll_arm", "avg_pitch_arm", "stddev_pitch_arm", "var_pitch_arm", "avg_yaw_arm",
+"stddev_yaw_arm", "var_yaw_arm", "kurtosis_roll_arm", "kurtosis_picth_arm",
+"kurtosis_yaw_arm", "skewness_roll_arm", "skewness_pitch_arm", "skewness_yaw_arm",
+"max_roll_arm", "min_roll_arm", "min_pitch_arm", "amplitude_roll_arm", "amplitude_pitch_arm",
+"kurtosis_roll_dumbbell", "kurtosis_picth_dumbbell", "kurtosis_yaw_dumbbell", "skewness_roll_dumbbell", "skewness_pitch_dumbbell", "skewness_yaw_dumbbell", "max_yaw_dumbbell", "min_yaw_dumbbell", "amplitude_yaw_dumbbell", "kurtosis_roll_forearm", "kurtosis_picth_forearm", "kurtosis_yaw_forearm", "skewness_roll_forearm", "skewness_pitch_forearm", "skewness_yaw_forearm", "max_roll_forearm", "max_yaw_forearm", "min_roll_forearm", "min_yaw_forearm", "amplitude_roll_forearm", "amplitude_yaw_forearm", "avg_roll_forearm", "stddev_roll_forearm", "var_roll_forearm", "avg_pitch_forearm", "stddev_pitch_forearm", "var_pitch_forearm", "avg_yaw_forearm", "stddev_yaw_forearm", "var_yaw_forearm")
+
+Training <- Training[!NZVvars]
+
+dim(Training)
+
+
+```
+
+Verify that all column names in both data sets are the same:
+
+```{r}
+
+Training <- Training[c(-1)]
+
+trainingV3 <- Training 
+for(i in 1:length(Training)) { 
+        if( sum( is.na( Training[, i] ) ) /nrow(Training) >= .6 ) {  
+        for(j in 1:length(trainingV3)) {
+            if( length( grep(names(Training[i]), names(trainingV3)[j]) ) ==1)  {  
+                trainingV3 <- trainingV3[ , -j] 
+            }   
+        } 
+    }
+}
+
+dim(trainingV3)
+
+Training <- trainingV3
+rm(trainingV3)
+
+clean1 <- colnames(Training)
+clean2 <- colnames(Training[, -58]) 
+Testing <- Testing[clean1]
+
+dim(Testing)
+
+```
+
+
+There are more options, data could be split in multiple training sets and after removing zeros and NAs the model can be created or use the data as a single set and compare the test set and training set after cleaning the data.
+Using the whole data is a better approach.
+
+Removing the columns with more than 60% NA. Partition the data.
+
+```{r}
+
+Fit_model <- rpart(classe ~ ., data=Training, method="class")
+
+graphics.off() 
+par("mar") 
+par(mar=c(1,1,1,1))
+fancyRpartPlot(Fit_model)
+
+
+predictions <- predict(Fit_model, Testing, type = "class")
+confusionMatrix(predictions, Testing$classe)
+
+```
+
+
+Random Forest Prediction Model
+
+## Decision Tree
+
+```{r}
+set.seed(12500)
+library(randomForest)
+
+modFit <- randomForest(Training$classe ~ ., data = Training)
+predictions_RF <- predict(modFit, Testing, type = "class")
+confusionMatrix(predictions_RF, Testing$classe)
+
+
+```
+
